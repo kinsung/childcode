@@ -1,6 +1,8 @@
 # Author: Yuta Miyake
 # File: downloader.py
 
+#usage: $ python downloader.py http://ocw.mit.edu/courses/brain-and-cognitive-sciences/9-66j-computational-cognitive-science-fall-2004/lecture-notes/ pdf pdfs
+
 from bs4 import BeautifulSoup as bs
 # from BeautifulSoup import BeautifulSoup as bs
 import urllib2, requests, os, re, sys, urlparse
