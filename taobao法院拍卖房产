@@ -1,0 +1,118 @@
+#coding=utf-8
+
+'''
+@author: kisung@2018
+'''
+import re
+import requests
+import time
+from lxml import etree
+import json
+#from mysql import Mysql
+
+#calc distance 
+from math import radians, cos, sin, asin, sqrt
+
+#近似计算两点间距离m
+def geodistance(lng1,lat1,lng2,lat2):
+    lng1, lat1, lng2, lat2 = map(radians, [lng1, lat1, lng2, lat2])
+    dlon=lng2-lng1
+    dlat=lat2-lat1
+    a=sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2 
+    dis=2*asin(sqrt(a))*6371*1000
+    return dis
+
+#通过地址获取经纬度
+#使用高德API
+def geocodeG(address):
+    par = {'address': address, 'key': 'cb649a25c1f81c1451adbeca73623251'}
+    base = 'http://restapi.amap.com/v3/geocode/geo'
+    response = requests.get(base, par)
+    answer = response.json()
+    print(response)
+    print(answer)
+    GPS=answer['geocodes'][0]['location'].split(",")
+    return GPS[0],GPS[1]
+
+#使用百度API
+def geocodeB(address):
+    base = url = "http://api.map.baidu.com/geocoder?address=" + address + "&output=json&key=f247cdb592eb43ebac6ccd27f796e2d2"
+    response = requests.get(base)
+    answer = response.json()
+    return answer['result']['location']['lng'],answer['result']['location']['lat']
+
+class HourseCrawler:
+    def getJsonDataList(self, source_list):
+        jsonDataList = []
+        for url in source_list :        
+            html = self.getPage(url)
+            #dataList = re.findall(re.compile(r'\<script id="sf-item-list-data" type="text/json"\>(.*?)\<\/script\>">', re.S), html)           
+            dataList = re.findall(re.compile(r'script id=.sf-item-list-data. type=.text.json..(.*?)..script.', re.S), html)            
+            if  len(dataList) >0:
+                jsonData = dataList[0]  
+                jsonDataList.append(jsonData)   
+
+            for pageIndex in range(2, 10):      
+                dataPageUrls = re.findall(re.compile(r'(//sf.taobao.com/list.+?htm\?auction_start_seg.+?;page=' + str(pageIndex) +')" rel="nofollow"', re.S), html)  
+				#				 <a href="    		    //sf.taobao.com/list/50025969_____%BA%BC%D6%DD.htm?auction_start_seg=7&amp;page=2" rel="nofollow">2</a>
+				#				 <a href="    		    //sf.taobao.com/list/50025969_____%BA%BC%D6%DD.htm?auction_start_seg=7&amp;page=3" rel="nofollow">3</a>
+				#				 <a href="    		    //sf.taobao.com/list/50025969_____%BA%BC%D6%DD.htm?auction_start_seg=7&amp;page=4" rel="nofollow">4</a>  
+                if  len(dataPageUrls) >0:                    
+                    html = self.getPage(url)
+                    #dataList = re.findall(re.compile(r'\<script id="sf-item-list-data" type="text/json"\>(.*?)\<\/script\>">', re.S), html)           
+                    dataList = re.findall(re.compile(r'script id=.sf-item-list-data. type=.text.json..(.*?)..script.', re.S), html)            
+                    if  len(dataList) >0:
+                        jsonData = dataList[0]  
+                        jsonDataList.append(jsonData)   
+        return jsonDataList
+
+    def getPage(self,url):
+        print('getPage start grabing url:', url)
+        headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36'}    
+        resposne = requests.get(url, headers=headers)
+        #content = etree.HTML(resposne.text)
+        html =resposne.text
+        #print(content)
+        #print(html)
+        return html
+
+#某一个城市几天之内的房产
+source_urls = ['https://sf.taobao.com/item_list.htm?spm=a213w.7398504.filter.81.pQ8tiz&category=50025969&city=%BA%BC%D6%DD&auction_start_seg=7', \
+'https://sf.taobao.com/item_list.htm?spm=a213w.7398504.filter.33.4NkDbR&location_code=330683&category=50025969&city=&province=&auction_start_seg=7' ]
+
+#不感兴趣，排除在外的列表
+excludeToks = ['富阳', '桐庐', '余杭', '千岛湖', '临安', '上虞', '诸暨',]
+
+
+#生成一个网页，不同城市分列 
+
+if __name__ == '__main__':
+    #mysql = Mysql()
+    craw = HourseCrawler()
+    jsonDataList = craw.getJsonDataList(source_urls)
+    for jd in jsonDataList :
+        #print(jd)
+        obj = json.loads(jd)
+        for item in  obj['data']:
+            title = item['title']
+
+            foundToken = False
+            for tok in excludeToks:
+                if title.find(tok) >=0 :
+                    foundToken = True
+                    break
+            if  foundToken :  #如果有排除的名称，则不要输出
+                continue           
+
+            print(item['id'])
+            print(item['itemUrl'])
+            print(item['title'])
+            print(item['picUrl'])
+            print(int(item['initialPrice'])/10000, '万' )
+            print(int(item['consultPrice'])/10000, '万' )
+            #print(int(item['marketPrice'])/10000, '万' )
+            address = item['title']
+            #address = address[0:6]
+            #geo = geocodeG(address)
+            #print(geo[0], geo[1])
+        print('=========================================================================')
