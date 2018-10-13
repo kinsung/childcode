@@ -20,6 +20,15 @@ class CItem:
 		self.lineIndex = -1
 		self.srcCode = ''  #翻译后的文字 
 		self.dstCode =''    #翻译后的文字 
+	def out(self):
+		if self.filepath :
+			print('filepath: '+self.filepath)
+		if self.lineIndex :
+			print('lineIndex: '+str(self.lineIndex))
+		if self.srcCode :
+			print('srcCode: '+self.srcCode)
+		if self.dstCode :
+			print('dstCode: '+self.dstCode)
 
 class CItemMgr:
 	def __init__(self):
@@ -27,9 +36,10 @@ class CItemMgr:
 		#listItem = []
 	
 	def append(self, ci):		
-		if not ci.filepath:
+		if not ci.filepath or ci.lineIndex<0:
+			ci.out()
 			print('ci filepath is null')
-			exit()
+			return
 		if ci.filepath in self.dict:
 			self.dict[ci.filepath].append(ci)
 		else:
@@ -54,10 +64,12 @@ class CItemMgr:
 			for i in range(len(itemList)):
 				ci =  itemList[i]
 				try:
-						if ci.dstCode:
-							fileLines[ci.lineIndex-1] = ci.dstCode #+'翻译后'
-						else:
-							fileLines[ci.lineIndex-1] = ci.srcCode #+'翻译后'
+					if(ci.lineIndex<0):
+						continue
+					if ci.dstCode:
+						fileLines[ci.lineIndex-1] = ci.dstCode #+'翻译后'
+					else:
+						fileLines[ci.lineIndex-1] = ci.srcCode #+'翻译后'
 				except:
 					print('超出大小 ci.lineIndex-1: '+str(ci.lineIndex-1))
 					print('srcCode:'+ ci.srcCode+'dstCode'+str(ci.dstCode))
