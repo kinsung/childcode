@@ -13,6 +13,7 @@ import chardet
 #在vs中用正则表达式查找 \".*\"，对其结果保存为两个文件，对其中一个文件中的文本进行翻译，把这两个文件输入，替换代码
 #确保两个文件的行数是完全一致的。 
 #一般情况下，只输入一个翻译后的文件即可 
+#vs输出窗口拷贝过来时，可能会有分行错误，需要检查处理 在Err文件中 
 
 class CItem:
 	def __init__(self):
@@ -35,10 +36,10 @@ class CItemMgr:
 		self.dict={} #key: filePath, value: CItem List
 		#listItem = []
 	
-	def append(self, ci):		
+	def append(self, ci, codeLine):		
 		if not ci.filepath or ci.lineIndex<0:
 			ci.out()
-			print('ci filepath is null')
+			print('ci filepath is null:'+codeLine)
 			return
 		if ci.filepath in self.dict:
 			self.dict[ci.filepath].append(ci)
@@ -74,7 +75,8 @@ class CItemMgr:
 					print('超出大小 ci.lineIndex-1: '+str(ci.lineIndex-1))
 					print('srcCode:'+ ci.srcCode+'dstCode'+str(ci.dstCode))
 
-			f = open(path+'.txt','w', encoding="utf8")
+			#f = open(path+'.txt','w', encoding="utf8")
+			f = open(path,'w', encoding="utf8")
 			f.writelines(fileLines)
 			f.close()
 		
@@ -84,6 +86,7 @@ def parse_line(line):
 	filePath = ''
 	lineIndex = -1
 	code = ''
+	#print('line: '+line)
 	idx = line.find('):')
 	if idx >0:
 		tok0 = line[0:idx]
@@ -96,17 +99,32 @@ def parse_line(line):
 		#print(lineIndex)
 		#print(code)
 		return filePath, int(lineIndex), code
+	else:
+		print(line+'######## ): not found.')
 
 	return '', -1, ''
 
 
 def process_file(filepathSrc, filepathDst):
+	print('filepathSrc:'+filepathSrc)
+	print('filepathDst:'+filepathDst)
+
 	fsrc = open(filepathSrc,'r',encoding="utf8")
 	resultSrc = list()
-	for line in fsrc.readlines():                       #依次读取每行
-		#line = line.strip()                             #去掉每行头尾空白
-		#if not len(line) or line.startswith('#'):      #判断是否是空行或注释行
-		#	continue                                    #是的话，跳过不处理
+	fContentList = fsrc.readlines()
+	#fContent = fsrc.read()
+	#fContentList = fContent.split('\n')
+	#print(fContentList)
+	#fContentListWitnNewLine = [line.rstrip()+'\n' for line in fContentList]
+	#f = open("out.txt",'w', encoding="utf8")
+	#f.writelines(fContentListWitnNewLine)
+	#f.writelines(fContentList)
+	#f.close()
+
+	for line in fContentList: #fsrc.readlines():                       #依次读取每行
+		ln = line.strip()                             #去掉每行头尾空白
+		if not len(ln) or ln.startswith('#'):      #判断是否是空行或注释行
+			continue                                    #是的话，跳过不处理
 		idx = line.find("查找")
 		if idx>=0 and idx<4:
 			continue
@@ -123,9 +141,9 @@ def process_file(filepathSrc, filepathDst):
 		fdst = open(filepathDst,'r',encoding="utf8")
 		resultDst = list()
 		for line in fdst.readlines():                       #依次读取每行
-			#line = line.strip()                             #去掉每行头尾空白
-			#if not len(line) or line.startswith('#'):      #判断是否是空行或注释行
-			#	continue                                    #是的话，跳过不处理
+			ln = line.strip()                             #去掉每行头尾空白
+			if not len(ln) or ln.startswith('#'):      #判断是否是空行或注释行
+				continue                                    #是的话，跳过不处理
 			idx = line.find("查找")
 			if idx>=0 and idx<4:
 				continue
@@ -152,10 +170,18 @@ def process_file(filepathSrc, filepathDst):
 			ci.filepath = pathSrc
 			ci.srcCode = codeSrc
 			ci.dstCode = codeDst
-			itemMgr.append(ci)
-	else:		
+			itemMgr.append(ci, lineSrc)
+	else:	
+		
+		fErr = open("Error错误的行.txt",'w', encoding="utf8")
+		#fErr.write("错误的行："+"\n")
 		for i in range(len(resultSrc)):
 			lineSrc = resultSrc[i] #resultSrc即是resultDst
+			
+			if len(lineSrc) <8:
+				fErr.write(lineSrc+"\n")
+
+			#print('lineSrc: '+lineSrc)
 			pathSrc, lineIndexSrc, codeSrc = parse_line(lineSrc)
 			ci = CItem()
 			ci.lineIndex = lineIndexSrc
@@ -163,7 +189,9 @@ def process_file(filepathSrc, filepathDst):
 			ci.filepath = pathSrc
 			ci.srcCode = codeSrc
 			#ci.dstCode = 
-			itemMgr.append(ci)
+			itemMgr.append(ci, lineSrc)
+
+		fErr.close()
 
 	itemMgr.do_replace()
 
